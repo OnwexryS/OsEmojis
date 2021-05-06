@@ -1,0 +1,13 @@
+name: OsEmojis
+version: ${project.version}
+main: com.minerival.develop.osemojis.OsEmojis
+api-version: 1.16
+authors: [OnwexryS]
+commands:
+  emoji:
+    description: Emoji commands.
+permissions:
+  emoji.reload:
+    default: op
+  emoji.listesi:
+    default: true
