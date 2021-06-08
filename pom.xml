@@ -6,7 +6,7 @@
 
     <groupId>com.minerival.develop</groupId>
     <artifactId>OsEmojis</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>jar</packaging>
 
     <name>OsEmojis</name>
