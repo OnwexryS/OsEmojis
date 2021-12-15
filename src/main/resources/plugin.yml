@@ -6,8 +6,12 @@ authors: [OnwexryS]
 commands:
   emoji:
     description: Emoji commands.
+  el:
+    description: Shortcut of emoji list
 permissions:
   emoji.reload:
     default: op
-  emoji.listesi:
+  emoji.list:
+    default: true
+  el:
     default: true
