@@ -3,6 +3,13 @@ groups:
   admin: '&a'
   owner: '&e'
 
+
+registeredCommands:
+  - /msg
+  - /broadcast
+  - /say
+
+
 emojis:
   - ':D@䰁'
   - ':)@䰀'

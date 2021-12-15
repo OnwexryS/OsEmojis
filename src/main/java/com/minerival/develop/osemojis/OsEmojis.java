@@ -7,6 +7,7 @@ import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.apache.commons.lang.Validate;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -15,6 +16,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,21 +24,23 @@ import java.util.*;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 
 public final class OsEmojis extends JavaPlugin implements Listener {
 
     public Boolean printLoadedEmojis = false;
-    public String newEmojiDetectedMessage = "eklendi";
-    public String loadingEmojiMessage = "yüklendi";
-    public String noPermisisonMessage = "&cYetersiz yetki";
-    public static String prefix= "&1[&bO''s &9Emojileri&1] ";
-    public static String reloadingMessage = "&e&lYenileniyor..";
-    public static String reloadedMessage = "&a&lYenilendi !";
+    public String newEmojiDetectedMessage = "added";
+    public String loadingEmojiMessage = "loaded";
+    public String noPermisisonMessage = "&cNo permission";
+    public static String prefix= "&1[&bO''s &9Emojis&1] ";
+    public static String reloadingMessage = "&e&lReloading..";
+    public static String reloadedMessage = "&a&lReloaded !";
 
 
     public static Map<String, String> loadedEmojis = new HashMap<>();
     Map<String, Object> groupColors = new HashMap<>();
+    List<String> registeredCommands = new ArrayList();
 
     @Override
     public void onEnable() {
@@ -68,24 +72,42 @@ public final class OsEmojis extends JavaPlugin implements Listener {
             loadedEmojis.put(key, value);
         }
         groupColors = getConfig().getConfigurationSection("groups").getValues(false);
+        registeredCommands = new ArrayList<>();
+        getConfig().getStringList("registeredCommands").stream().forEach(i -> registeredCommands.add(i));
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onCommand(PlayerCommandPreprocessEvent e){
+        String[] commands = e.getMessage().split(" ");
+        if (registeredCommands.contains(commands[0])){
+            String processedCommand = "";
+            for (int i = 1; i < commands.length; i++){
+                processedCommand += commands[i] + " ";
+            }
+            e.setMessage(commands[0] + " " + processMessage(processedCommand, ""));
+        }
+        return;
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onChat(AsyncPlayerChatEvent e){
-        if(e.getMessage().contains(",")){
-            String msg = e.getMessage();
-            String[] exps = getExpressions(msg);
+        e.setMessage(processMessage(e.getMessage(), getGroupColor(e.getPlayer())));
+    }
+
+    public String processMessage(String message, String groupColor){
+        if(message.contains(",")){
+            String[] exps = getExpressions(message);
             String[] emojis = toEmoji(exps);
             if (exps.length == 0 || emojis.length == 0){
-                return;
+                return message;
             }
-            String groupColor = getGroupColor(e.getPlayer());
             int expCounter = 0;
             String result = "";
             char c;
-            for (int i = 0; i < msg.length(); i++){
-                c = msg.charAt(i);
-                if(msg.charAt(i) == ','){
+            for (int i = 0; i < message.length(); i++){
+                c = message.charAt(i);
+                if(message.charAt(i) == ','){
 
                     result += ChatColor.WHITE+emojis[expCounter]+translateHexColorCodes(groupColor);
                     i += exps[expCounter].length() + 1;
@@ -95,8 +117,9 @@ public final class OsEmojis extends JavaPlugin implements Listener {
                     result += c;
                 }
             }
-            e.setMessage(result);
+            message = result;
         }
+        return message;
     }
     private String getGroupColor(Player p){
         String group = loadUser(p).getPrimaryGroup();
@@ -173,14 +196,13 @@ public final class OsEmojis extends JavaPlugin implements Listener {
 
 
 
-
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args){
         if (label.equalsIgnoreCase("emoji")){
             if (args.length == 0){
                 if (sender.hasPermission("emoji.reload")){
                     sender.sendMessage(ChatColor.WHITE+"/emoji reload");
                 }
-                sender.sendMessage(ChatColor.WHITE+"/emoji listesi");
+                sender.sendMessage(ChatColor.WHITE+"/emoji list");
                 return true;
             }
             if (args.length > 0){
@@ -196,47 +218,57 @@ public final class OsEmojis extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.translateAlternateColorCodes('&', prefix+ reloadedMessage));
                     return true;
                 }
-                if (args[0].equalsIgnoreCase("listesi")){
-                    if (!sender.hasPermission("emoji.listesi") || !sender.isOp()){
+                if (args[0].equalsIgnoreCase("list")){
+                    /*if (!(sender.hasPermission("emoji.list")) && !(sender.isOp())){
                         sender.sendMessage(ChatColor.translateAlternateColorCodes('&', prefix+ noPermisisonMessage));
                         return true;
-                    }
-                    //emojileri sıralayıp gönder
-                    Iterator<String> keys = loadedEmojis.keySet().iterator();
-                    Iterator<String> values = loadedEmojis.values().iterator();
-                    int emojiPerLine = 6;
-                    //TextComponent[] msg = new TextComponent[emojiPerLine];
-
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&8&m－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－"));
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&6Emojileri &2,:D,&6 gibi yazarak kullanabilirsin"));
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&eKullanabileceğin emojiler: "));
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&',""));
-                    while(keys.hasNext()){
-                        ArrayList<TextComponent> msg = new ArrayList<>();
-                        for (int i = 0; i < emojiPerLine; i++){
-                            if (!keys.hasNext()){
-                                break;
-                            }
-                            String key = keys.next();
-                            String value = values.next();
-
-                            msg.add(i, new TextComponent(colorize(" &2| &f"+value+" &2| ")));
-                            msg.get(i).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[]{new TextComponent(colorize("&6Otoyazdır (&e,"+key+",&6)"))}));
-                            msg.get(i).setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, ","+key+","));
-                        }
-                        TextComponent[] msgs = new TextComponent[msg.size()];
-                        for (int i = 0; i < msgs.length; i++){
-                            msgs[i] = msg.get(i);
-                        }
-                        sender.spigot().sendMessage(msgs);
-                    }
-                    sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&8&m－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－"));
-
+                    }*/
+                    sendEmojis(sender);
                     return true;
                 }
             }
 
+        }else if (label.equalsIgnoreCase("el")){
+            sendEmojis(sender);
+            return true;
         }
         return false;
     }
+
+    public void sendEmojis(CommandSender sender){
+        //emojileri sıralayıp gönder
+        Iterator<String> keys = loadedEmojis.keySet().iterator();
+        Iterator<String> values = loadedEmojis.values().iterator();
+        int emojiPerLine = 6;
+        //TextComponent[] msg = new TextComponent[emojiPerLine];
+
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&8&m－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－"));
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&6You can use emojis typing like &2,:D,&6."));
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&eEmojis You Can Use: "));
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&',""));
+        while(keys.hasNext()){
+            ArrayList<TextComponent> msg = new ArrayList<>();
+            for (int i = 0; i < emojiPerLine; i++){
+                if (!keys.hasNext()){
+                    break;
+                }
+                String key = keys.next();
+                String value = values.next();
+
+                msg.add(i, new TextComponent(colorize(" &2| &f"+value+" &2| ")));
+                msg.get(i).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[]{new TextComponent(colorize("&6Autowrite (&e,"+key+",&6)"))}));
+                msg.get(i).setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, ","+key+","));
+            }
+            TextComponent[] msgs = new TextComponent[msg.size()];
+            for (int i = 0; i < msgs.length; i++){
+                msgs[i] = msg.get(i);
+            }
+            sender.spigot().sendMessage(msgs);
+        }
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&8&m－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－"));
+
+    }
+
+
+
 }
